@@ -1,4 +1,4 @@
-﻿#include <boost/asio.hpp>
+#include <boost/asio.hpp>
 #include <filesystem>
 #include <thread>
 #include <iostream>
@@ -25,11 +25,16 @@ void scanDirectory(const std::string& rootPath) {
         return;
     }
 
+    std::cout << "Scanning directory: " << rootPath << std::endl;
+
     for (const auto& entry : fs::recursive_directory_iterator(rootPath)) {
         if (entry.is_regular_file()) {
             filesList.push_back({ entry.path().filename().string(), entry.path().string() });
+            std::cout << "File found: " << entry.path().string() << std::endl;
         }
     }
+
+    std::cout << "Directory scan completed." << std::endl;
 }
 
 std::string findFileInList(const std::string& requestedPath) {
@@ -56,8 +61,15 @@ void log_request(const std::string& client_ip, const std::string& request) {
         std::ofstream log("server.log", std::ios::app);
         if (log.is_open()) {
             log << "[" << time_buffer << "] " << client_ip << " " << path << " " << method << "\n";
+            log.close();
+        } else {
+            std::cerr << "Failed to open log file." << std::endl;
         }
+
+    } else {
+        std::cerr << "Failed to get local time." << std::endl;
     }
+
 }
 
 std::string get_content_type(const std::string& path) {
@@ -90,6 +102,8 @@ std::string create_response(const std::string& request) {
 
     request_stream >> method >> path >> protocol;
 
+    std::cout << "Request received: " << method << " " << path << std::endl;
+
     if (path.find("/WWWROOT") == 0) {
         path = path.substr(8);
     }
@@ -105,6 +119,9 @@ std::string create_response(const std::string& request) {
                     content.write(buffer, file.gcount());
                 }
                 content.write(buffer, file.gcount());
+                file.close();
+
+                std::cout << "File found and sent: " << path << std::endl;
 
                 return "HTTP/1.1 200 OK\r\n"
                     "Content-Type: " + get_content_type(path) + "\r\n"
@@ -112,9 +129,11 @@ std::string create_response(const std::string& request) {
                     content.str();
             }
         }
-        return "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nFile not found.";
-    }
-    else if (method == "POST" && path == "/api/echo") {
+        std::cout << "File not found: " << path << std::endl;
+        return "HTTP/1.1 404 Not Found\r\n"
+            "Content-Type: text/plain\r\n\r\n"
+            "File not found.";
+    } else if (method == "POST" && path == "/api/echo") {
         std::string body;
         getline(request_stream, body, '\0');
         return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + body;
@@ -127,6 +146,8 @@ void handle_client(tcp::socket socket) {
     auto read_buffer = std::make_shared<std::array<char, 1024>>();
     auto self = std::make_shared<tcp::socket>(std::move(socket));
     std::string client_ip = self->remote_endpoint().address().to_string();
+
+    std::cout << "New client connected: " << client_ip << std::endl;
 
     self->async_read_some(boost::asio::buffer(*read_buffer),
         [read_buffer, self, client_ip](const boost::system::error_code& ec, std::size_t bytes_transferred) {
@@ -143,10 +164,11 @@ void handle_client(tcp::socket socket) {
                                 std::cerr << "Write error: " << ec.message() << std::endl;
                             }
                         });
-                }
-                catch (const std::exception& ex) {
+                } catch (const std::exception& ex) {
                     std::cerr << "Exception: " << ex.what() << std::endl;
                 }
+            } else {
+                std::cerr << "Read error: " << ec.message() << std::endl;
             }
         });
 }
@@ -154,7 +176,10 @@ void handle_client(tcp::socket socket) {
 void start_accepting(tcp::acceptor& acceptor) {
     acceptor.async_accept([&acceptor](const boost::system::error_code& ec, tcp::socket socket) {
         if (!ec) {
+            std::cout << "New client connected!" << std::endl;
             handle_client(std::move(socket));
+        } else {
+            std::cerr << "Accept error: " << ec.message() << std::endl;
         }
         start_accepting(acceptor);
         });
@@ -179,8 +204,7 @@ int main() {
         for (auto& t : threads) {
             t.join();
         }
-    }
-    catch (const std::exception& ex) {
+    } catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
     }
 
