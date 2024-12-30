@@ -21,6 +21,6 @@
 |-- server.log     # Лог-файл (создается автоматически)
 |-- ConsoleApplication1.cpp       # Исходный код
 ```
-![2024-12-30-23-30-10](https://github.com/user-attachments/assets/a1dbe67a-ce0a-4c78-b620-ef84dcd53e88)
+![ezgif-2-4bfa452146](https://github.com/user-attachments/assets/8cd171a1-2b63-4552-a0c1-daff9b743b23)
 ---
 ![Снимок экрана 2024-12-30 232148](https://github.com/user-attachments/assets/1fa71cd7-2eb3-4a03-90c3-440d5a0d76f8)
